@@ -1,9 +1,9 @@
-import socket
+import socket, threading, sys
 
 FORMAT = "ascii"
 DEST_NAME = socket.gethostname()
 DEST_IP = socket.gethostbyname(DEST_NAME)
-PORT = 50005
+PORT = 50000
 BYTE_SIZE = 1024
 CONNECTED = True
 DISCONNECT_MSG = "quit"
@@ -15,23 +15,40 @@ def connect_client_socket():
     return client_socket
 
 def get_user_input():
-    msg = input(f"{DEST_NAME}@{DEST_IP}:$ ") or "[EMPTY STRING]"
-    return msg
+    connected = True
+    while connected:
+        msg = input(f"{DEST_NAME}@{DEST_IP}:$ ") or "[EMPTY STRING]"
+        if (msg != 'quit()'):
+            return msg
 
-def main():
-    global CONNECTED
-    client_socket = connect_client_socket()
-    while CONNECTED:
-        msg = get_user_input()
-        client_socket.send(msg.encode(FORMAT))
-        if msg != "quit":
-            print("[SENT] Message sent...\n")
-            server_reply = client_socket.recv(BYTE_SIZE).decode(FORMAT)
-            print(f"[SERVER]:$ {server_reply}")
-            continue
-        else:
-            CONNECTED = False
+def print_server_response(client_socket):
+    while True:
+        try:
+            msg = client_socket.recv(BYTE_SIZE).decode(FORMAT)
+            if msg:
+                print(f"[SERVER]: {msg}")
+        except ConnectionResetError:
             break
-    print(f"[SHUTDOWN] Client has shutdown...")
-    client_socket.close()
+
+def send_message(client_socket):
+    while True:
+        msg = input(f"{DEST_NAME}:$") or "[EMPTY STRING]"
+        if msg == 'quit()':
+            client_socket.send(msg.encode(FORMAT))
+            client_socket.close()
+            sys.exit(1)
+            break
+        client_socket.send(msg.encode(FORMAT))
+        
+def main():
+    client_socket = connect_client_socket()
+    client_thread = threading.Thread(target=send_message, args=(client_socket, ))
+
+    receiver_thread = threading.Thread(target=print_server_response, args=(client_socket, ))
+    receiver_thread.start()
+    client_thread.start()
+    
+    receiver_thread.join()
+    client_thread.join()
+
 main()
