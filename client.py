@@ -11,7 +11,7 @@ DISCONNECT_MSG = "quit"
 def connect_client_socket():
     client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     client_socket.connect((DEST_IP, PORT))
-    print("[CONNECTED] Client connected\n")
+    print("[CONNECTED] Connected to the server.\n")
     return client_socket
 
 def get_user_input():
@@ -25,18 +25,24 @@ def print_server_response(client_socket):
     while True:
         try:
             msg = client_socket.recv(BYTE_SIZE).decode(FORMAT)
-            if msg:
+            if msg and msg != 'quit()':
                 print(f"[SERVER]: {msg}")
-        except ConnectionResetError:
+            elif msg == 'quit()':
+                print("[SERVER SHUTDOWN] Server has shutdown...")
+                client_socket.close()
+                break
+            else:
+                break
+        except OSError as e:
+            print(f"[ERRRRROOORR]: {e}")
             break
 
 def send_message(client_socket):
     while True:
-        msg = input(f"{DEST_NAME}:$") or "[EMPTY STRING]"
+        msg = input() or "[EMPTY STRING]"
         if msg == 'quit()':
             client_socket.send(msg.encode(FORMAT))
             client_socket.close()
-            sys.exit(1)
             break
         client_socket.send(msg.encode(FORMAT))
         
